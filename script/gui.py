@@ -1,4 +1,4 @@
-
+#!/usr/bin/python
 import pafy
 import os.path
 import random
@@ -8,6 +8,7 @@ import sys
 import glob
 from tkinter import Tk
 import copy
+import traceback
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QKeySequence, QPalette, QColor, QIcon, QPixmap, QMovie, QColor
@@ -255,7 +256,11 @@ class MyWindow(QMainWindow):
 
             for i, etudiant in enumerate(self.get_etudiants()):
                 self.media_list.setItem(i,0,QTableWidgetItem(etudiant.nom))
-                #self.media_list.item(i,0).setBackground(QColor(self.get_owner(media.owner).color))
+                if etudiant.condition == 0:
+                    color = "green"
+                elif etudiant.condition == 2:
+                    color = "red"
+                self.media_list.item(i,0).setBackground(QColor(color))
                 
     #Correction window----------------------------------------------------------
     def generate_correction(self,student):
@@ -292,9 +297,10 @@ class MyWindow(QMainWindow):
 
     def generer(self, widget):
         folder_student = QFileDialog.getExistingDirectory(self, "Selectionner Dossier travaux")
-        file_grille    = QFileDialog.getOpenFileName(self, "Selectionner Fhichier grille")[0]
-        if folder_student != "" and file_grille != "":
-            self.classe = create_class(folder_student,file_grille)
+        file_grille    = QFileDialog.getOpenFileName(self, "Selectionner Fichier grille")[0]
+        path_corrector    = QFileDialog.getOpenFileName(self, "Selectionner Fichier correcteur")[0]
+        if folder_student != "" and file_grille != "" and path_corrector != "":
+            self.classe = create_class(folder_student,file_grille,path_corrector)
             self.set_student_list()
 
     def load(self, widget):
