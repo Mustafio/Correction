@@ -29,6 +29,7 @@ class MyWindow(QMainWindow):
 
     index = 0
     classe = None
+    loaded = False
 
     current_grades = []
 
@@ -80,7 +81,6 @@ class MyWindow(QMainWindow):
 
         self.left_layout = QSplitter(Qt.Vertical)
         self.central_layout = QSplitter(Qt.Vertical)
-        self.right_layout = QSplitter(Qt.Vertical)
 
         self.widget.setLayout(self.main_layout)
 
@@ -90,6 +90,7 @@ class MyWindow(QMainWindow):
 
         self.media_list_stack = QStackedWidget(self)
         self.media_list_stack.setMinimumWidth(200)
+        
         self.media_list = QTableWidget(self)
         self.media_list.itemClicked.connect(self.select)
         self.media_list.itemDoubleClicked.connect(self.change_media_list)
@@ -130,13 +131,56 @@ class MyWindow(QMainWindow):
         self.title.setFixedHeight(50)
         self.titleFrame.setFixedHeight(50)
         self.titleFrame.setWidget(self.title)
+        #Main correction window
+        self.main_correction_window = QSplitter(Qt.Horizontal)
+        #self.main_correction_window_layout = QHBoxLayout()
+        #self.main_correction_window.setLayout(self.main_correction_window_layout)
 
-        # Main Correction Window
-        self.main_media_stack = QStackedWidget(self)
-        self.correction_window = QLabel()
+        #Grille Window
+        self.correction_window = QWidget()
+        self.correction_window.setMinimumWidth(150)
         self.correction_layout = QVBoxLayout()
+        self.correction_layout.setSpacing(0)
+        self.correction_layout.setContentsMargins(0,0,0,0)
         self.correction_window.setLayout(self.correction_layout)
-        self.main_media_stack.addWidget(self.correction_window)
+
+        #Reference stack
+        self.reference_stack = QTabWidget()
+        
+        #Result
+        self.result_tab = QWidget()
+        self.result_tab_layout = QVBoxLayout()
+        self.result_tab.setLayout(self.result_tab_layout)
+
+        self.result_zone = QPlainTextEdit()
+        self.result_zone.setReadOnly(True)
+        #button
+        self.result_button = QPushButton("Open Original")
+        self.result_button.clicked.connect(self.open_result)
+        
+        self.result_tab_layout.addWidget(self.result_zone)
+        self.result_tab_layout.addWidget(self.result_button)
+        #Code
+        self.code_tab = QWidget()
+        self.code_tab_layout = QVBoxLayout()
+        self.code_tab.setLayout(self.code_tab_layout)
+
+        self.code_zone = QPlainTextEdit()
+        self.code_zone.setReadOnly(True)
+        #button
+        self.code_button = QPushButton("Open Original")
+        self.code_button.clicked.connect(self.open_code)
+        self.result_tab_layout.addWidget(self.result_zone)
+        self.result_tab_layout.addWidget(self.result_button)
+        
+        self.code_tab_layout.addWidget(self.code_zone)
+        self.code_tab_layout.addWidget(self.code_button)
+        
+        self.reference_stack.addTab(self.result_tab, "Resultat")
+        self.reference_stack.addTab(self.code_tab, "Code")
+
+        self.main_correction_window.addWidget(self.correction_window)
+        self.main_correction_window.addWidget(self.reference_stack)
 
         #Buttons for navigation controls
         self.bottom_buttons_box = QWidget()
@@ -156,37 +200,13 @@ class MyWindow(QMainWindow):
 
         #Add everything in the central window
         self.central_layout.addWidget(self.titleFrame)
-        self.central_layout.addWidget(self.main_media_stack)
+        self.central_layout.addWidget(self.main_correction_window)
         self.central_layout.addWidget(self.bottom_buttons_box)
-
-        #Set the right box------------------------------------------------------
-
-        # Set the vote buttons for the owners
-        self.table_widget_right = QTabWidget()
-
-        self.vote_tab = QWidget()
-        self.stats_tab = QWidget()
-        self.color_tab = QWidget()
-
-        self.table_widget_right.addTab(self.vote_tab,"Votes")
-        self.table_widget_right.addTab(self.stats_tab,"Stats")
-
-        self.vote_layout = QVBoxLayout()
-        self.stats_layout = QVBoxLayout()
-        self.color_layout = QVBoxLayout()
-
-        verticalSpacer = QSpacerItem(200, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.stats_tab.setMinimumWidth(200)
-        self.stats_tab.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.vote_tab.setLayout(self.vote_layout)
-        self.stats_tab.setLayout(self.stats_layout)
-        self.color_tab.setLayout(self.color_layout)
 
         #Put everything in the main window
 
         self.main_splitter.addWidget(self.left_layout)
         self.main_splitter.addWidget(self.central_layout)
-        self.main_splitter.addWidget(self.right_layout)
 
         self.main_splitter.setStretchFactor(1,3)
 
@@ -241,58 +261,120 @@ class MyWindow(QMainWindow):
             self.playNext(None)
         elif event.key() == Qt.Key_A or event.key() == Qt.Key_Left:
             self.previous(None)
-        elif event.key() == Qt.Key_Up:
-            self.change_volume_manual(10)
-        elif event.key() == Qt.Key_Down:
-            self.change_volume_manual(-10)
-        elif event.key() == 16777220:
-            self.change_focus(None)
     #List-----------------------------------------------------------------------
     def set_student_list(self):
         if self.classe != None:
             self.media_list.setRowCount(len(self.get_etudiants()))
-            self.media_list.setColumnCount(1)
-            self.media_list.horizontalHeader().setDefaultSectionSize(155)
+            self.media_list.setColumnCount(2)
+            self.media_list.horizontalHeader().setDefaultSectionSize(100)
 
             for i, etudiant in enumerate(self.get_etudiants()):
                 self.media_list.setItem(i,0,QTableWidgetItem(etudiant.nom))
+                if etudiant.note != None:
+                     self.media_list.setItem(i,1,QTableWidgetItem(etudiant.note))
+                     self.media_list.item(i,1).setBackground(QColor("green"))
+                else:
+                    self.media_list.setItem(i,1,QTableWidgetItem("NaN"))
+                    self.media_list.item(i,1).setBackground(QColor("red"))
                 if etudiant.condition == 0:
                     color = "green"
+                elif etudiant.condition == 1:
+                    color = "yellow"
                 elif etudiant.condition == 2:
                     color = "red"
                 self.media_list.item(i,0).setBackground(QColor(color))
                 
     #Correction window----------------------------------------------------------
     def generate_correction(self,student):
+        print(student.nom)
         if self.current_grades != []:
             for i,grade in enumerate(self.current_grades):
                 for j,info in enumerate(self.current_grades[i]):
                     self.correction_layout.removeWidget(info)
-                    self.correction_layout.removeWidget(info)
                     info.deleteLater()
                     info = None
         self.current_grades = []
-        for i, notation in enumerate(self.get_grille().bareme):
+        for i, notation in enumerate(student.grille.bareme):
             self.current_grades.append([])
             bloc = QLabel()
             bloc_layout = QHBoxLayout()
             bloc.setLayout(bloc_layout)
 
-            self.set_spinner(int(notation[0]),notation[1],bloc_layout,i)
-            description = QLabel(notation[1])
+            self.set_spinner(int(notation[0]),notation[1],notation[2],bloc_layout,i)
+            description = QLabel("/{} : {}".format(notation[0],notation[1]))
             self.current_grades[i].append(description)
             bloc_layout.addWidget(description)
             self.correction_layout.addWidget(bloc)
+            self.current_grades[i].append(bloc)
 
-    def set_spinner(self,value,name,layout,i):
+        spacer = QSpacerItem(0,10,QSizePolicy.Expanding,QSizePolicy.Minimum)
+        self.correction_layout.addItem(spacer)
+        #Comment zone
+        self.comment_zone = QPlainTextEdit(self)
+        self.comment_zone.setMaximumHeight(100)
+        self.comment_zone.setPlainText(student.grille.commentaires)
+        self.correction_layout.addWidget(self.comment_zone)
+        self.current_grades.append([self.comment_zone])
+        
+        #Button
+        self.done_button = QPushButton("Terminer")
+        self.done_button.setMaximumWidth(100)
+        self.done_button.clicked.connect(self.done)
+        self.correction_layout.addWidget(self.done_button)
+        self.current_grades.append([self.done_button])
+        
+        #Set Result zone
+        self.result_zone.setPlainText(get_result_text(student))
+        #Set Code zone
+        self.code_zone.setPlainText(get_code_text(student))
+        
+    def set_spinner(self,value,name,initial,layout,i):
         self.timer_spinner = QSpinBox()
+        self.timer_spinner.setFixedWidth(50)
         self.timer_spinner.setSingleStep(1)
-        self.timer_spinner.setMaximum(value);
-        self.timer_spinner.setValue(value);
+
+        if value >= 0:
+            if initial == None:
+                initial = value
+            self.timer_spinner.setMaximum(value)
+        else:
+            if initial == None:
+                initial = 0
+            self.timer_spinner.setMaximum(0)
+            self.timer_spinner.setMinimum(value)
+        self.timer_spinner.setValue(initial)
+            
         self.current_grades[i].append(self.timer_spinner)
-        layout.addWidget(self.timer_spinner)
+        layout.addWidget(self.timer_spinner,0,Qt.AlignTop)
 
+    def done(self,widget):
+        student = self.get_current_student()
+        print(student.nom)
+        note = 0
+        for i,spinner in enumerate(self.current_grades):
+            if i == len(self.current_grades) - 1:
+                break
+            elif i == len(self.current_grades) - 2:
+                student.grille.commentaires = spinner[0].toPlainText()
+                continue
+            student.grille.bareme[i][2] = int(spinner[0].value())
+            note += int(spinner[0].value())
+        student.note = note
+        #udpade student grade in list
+        self.media_list.item(self.index,1).setBackground(QColor("green"))
+        self.media_list.item(self.index,1).setText(str(note))
 
+        #output grille in student folder
+        output_student_grille(student)
+        print(student.note)
+
+    def open_code(self,student):
+        if self.loaded:
+            open_code_file(self.get_current_student())
+
+    def open_result(self,student):
+        if self.loaded:
+            open_result_file(self.get_current_student())
     #Menu actions---------------------------------------------------------------
 
     def generer(self, widget):
@@ -304,10 +386,11 @@ class MyWindow(QMainWindow):
             self.set_student_list()
 
     def load(self, widget):
-        path = QFileDialog.getOpenFileName(self, "Selectionner la fichier")[0]
+        path = QFileDialog.getOpenFileName(self, "Selectionner le fichier")[0]
         if path != "":
             self.classe = load_classe(path)
             self.set_student_list()
+            self.loaded = True
 
     def save(self, widget):
         path = QFileDialog.getSaveFileName(self, "Selectionner le fichier")[0]
@@ -316,9 +399,9 @@ class MyWindow(QMainWindow):
             self.set_student_list()
 
     def select(self, row):
-        index = row.row()
-        print(self.get_etudiants()[index].nom)
-        self.generate_correction(self.get_etudiants()[index])
+        self.index = row.row()
+        self.set_title(self.get_etudiants()[self.index].nom)
+        self.generate_correction(self.get_etudiants()[self.index])
 
     def change_media_list(self, row):
         print("going to: " + str(row.row()))
@@ -352,6 +435,9 @@ class MyWindow(QMainWindow):
         
     def set_title(self, text):
          self.title.setText(text)
+
+    def get_current_student(self):
+        return self.get_etudiants()[self.index]
 
 def get_window():
     return window
