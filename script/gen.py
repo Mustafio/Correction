@@ -110,6 +110,15 @@ def open_code_file(student):
 def open_result_file(student):
     os.system("emacs {} &".format(student.path + "/resultat.txt"))
 
+def get_average(classe):
+    total = 0
+    for etudiant in classe.etudiants:
+        if etudiant.note != None:
+            total += etudiant.note
+    average = total/len(classe.etudiants)
+
+    return average
+
 #Objects
 class Classe:
     def __init__(self,etudiants,grille,path):
