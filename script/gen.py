@@ -37,6 +37,7 @@ def get_students_info(path,main_grille, path_correcteur):
         try:
             #get all student files
             files = [f for f in glob.glob(new_folder + "/*.js")]
+            
             if len(files) == 0:
                 files = None
                 condition = 1
@@ -53,7 +54,6 @@ def get_students_info(path,main_grille, path_correcteur):
                 #subprocess.run([path_correcteur, files[0],'>', new_folder + '/correction.txt'])
         except:
             condition = 2
-
         etudiant = Etudiant(student_code,student_name, condition,grille, new_folder,new_file)
         students.append(etudiant)
     return students
@@ -67,6 +67,12 @@ def get_grille(path):
         bareme.append(line.split(","))
         bareme[i].append(None)
     return bareme
+
+def check_if_graded(classe):
+    for etudiant in classe.etudiants:
+         grille_files = [f for f in glob.glob(etudiant.path + "/*.md")]
+         if len(grille_files) >= 1:
+             etudiant.condition = 3
 
 def save_classe(data, path):
     pickle.dump( data, open(path, "wb"),
@@ -116,8 +122,25 @@ def get_average(classe):
         if etudiant.note != None:
             total += etudiant.note
     average = total/len(classe.etudiants)
-
+    print(total)
     return average
+
+def get_grade_from_grille(student):
+    grille = [f for f in glob.glob(student.path + "/*.md")]
+    print(grille)
+    text = open(grille[0],'r').read()
+    print(text)
+    
+    i = 0
+    lines = text.split('\n')
+    note = lines[i].split(':')[1]
+    i += 1
+    for grades in student.grille.bareme:
+        grades[2] = lines[i].split('/')[0]
+        i += 1
+        
+    print(note)
+    return note
 
 #Objects
 class Classe:

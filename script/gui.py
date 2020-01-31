@@ -32,6 +32,7 @@ class MyWindow(QMainWindow):
     loaded = False
 
     current_grades = []
+    search_list = []
 
     def __init__(self, parent=None):
         print("init")
@@ -47,8 +48,8 @@ class MyWindow(QMainWindow):
         #Window menu
         windowmenu = mainMenu.addMenu("Window")
 
-        #Class menu
-        classmenu = mainMenu.addMenu("Classes");
+        #Classe menu
+        classmenu = mainMenu.addMenu("Classe");
 
         generate_class_action = QAction("&Generer",self)
         generate_class_action.triggered.connect(self.generer)
@@ -62,6 +63,21 @@ class MyWindow(QMainWindow):
         classmenu.addAction(generate_class_action)
         classmenu.addAction(save_class_action)
         classmenu.addAction(load_class_action)
+
+         #Student menu
+        studentmenu = mainMenu.addMenu("Etudiants")
+
+        sort_sub_menu = studentmenu.addMenu("Sort")
+        sort_alph_menu = QAction("&Alphabetique",self)
+        sort_alph_menu.triggered.connect(self.sort_alph)
+        sort_grade_menu = QAction("&Note",self)
+        sort_grade_menu.triggered.connect(self.sort_grade)
+        sort_shuffle_menu = QAction("&Shuffle",self)
+        sort_shuffle_menu.triggered.connect(self.sort_shuffle)
+
+        sort_sub_menu.addAction(sort_alph_menu)
+        sort_sub_menu.addAction(sort_grade_menu)
+        sort_sub_menu.addAction(sort_shuffle_menu)
 
         self.show()
 
@@ -224,16 +240,12 @@ class MyWindow(QMainWindow):
 
     def playNext(self, widget):
         print("next")
-        self.input_votes()
-        self.index += 1
-        self.playMedia()
+        #self.index += 1
 
     def previous(self,widget):
         print("previous")
-        self.input_votes()
-        if (self.index != 0):
-            self.index -= 1
-        self.playMedia()
+        #if (self.index != 0):
+            #self.index -= 1
 
     def file_path(self, pathName=None):
         dirname=os.path.dirname
@@ -249,21 +261,22 @@ class MyWindow(QMainWindow):
         self.height = root.winfo_screenheight()
 
     def save_current(self, widget=None):
-        path = QFileDialog.getSaveFileName(self, "Open File",self.file_path())[0]
+        path = QFileDialog.getSaveFileName(self, "Open File")[0]
         if path:
-            self.input_votes()
-            self.current_file = path
-            self.save_current_playlist()
+            save_classe(self.classe,path)
 
     #Settings-------------------------------------------------------------------
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_D or event.key() == Qt.Key_Right:
-            self.playNext(None)
-        elif event.key() == Qt.Key_A or event.key() == Qt.Key_Left:
-            self.previous(None)
+    #def keyPressEvent(self, event):
+       # if event.key() == Qt.Key_D or event.key() == Qt.Key_Right:
+       #     self.playNext(None)
+       # elif event.key() == Qt.Key_A or event.key() == Qt.Key_Left:
+       #     self.previous(None)
+    
     #List-----------------------------------------------------------------------
     def set_student_list(self):
         if self.classe != None:
+            check_if_graded(self.classe)
+
             self.media_list.setRowCount(len(self.get_etudiants()))
             self.media_list.setColumnCount(2)
             self.media_list.horizontalHeader().setDefaultSectionSize(100)
@@ -282,8 +295,33 @@ class MyWindow(QMainWindow):
                     color = "yellow"
                 elif etudiant.condition == 2:
                     color = "red"
+                elif etudiant.condition == 3:
+                    if etudiant.note == None:
+                        etudiant.note = int(get_grade_from_grille(etudiant))
+                    color = "green"
+                    
                 self.media_list.item(i,0).setBackground(QColor(color))
-                
+
+                if etudiant.note != None:
+                     self.media_list.item(i,1).setBackground(QColor("green"))
+                     self.media_list.item(i,1).setText(str(etudiant.note))
+
+    #Sorting--------------------------------------------------------------------
+    def sort_alph(self,widget):
+        if self.classe != None:
+            self.classe.etudiants.sort(key=lambda x: x.nom,reverse=False)
+            self.set_student_list()
+
+    def sort_grade(self, widget):
+        if self.classe != None:
+            self.classe.etudiants.sort(key=lambda x: x.note,reverse=False)
+            self.set_student_list()
+
+    def sort_shuffle(self, widget):
+        if self.classe != None:
+            random.shuffle(self.classe.etudiants)
+            self.set_student_list()
+            
     #Correction window----------------------------------------------------------
     def generate_correction(self,student):
         print(student.nom)
@@ -307,8 +345,8 @@ class MyWindow(QMainWindow):
             self.correction_layout.addWidget(bloc)
             self.current_grades[i].append(bloc)
 
-        spacer = QSpacerItem(0,10,QSizePolicy.Expanding,QSizePolicy.Minimum)
-        self.correction_layout.addItem(spacer)
+        #spacer = QSpacerItem(0,10,QSizePolicy.Expanding,QSizePolicy.Minimum)
+        #self.correction_layout.addItem(spacer)
         #Comment zone
         self.comment_zone = QPlainTextEdit(self)
         self.comment_zone.setMaximumHeight(100)
@@ -342,7 +380,7 @@ class MyWindow(QMainWindow):
                 initial = 0
             self.timer_spinner.setMaximum(0)
             self.timer_spinner.setMinimum(value)
-        self.timer_spinner.setValue(initial)
+        self.timer_spinner.setValue(int(initial))
             
         self.current_grades[i].append(self.timer_spinner)
         layout.addWidget(self.timer_spinner,0,Qt.AlignTop)
@@ -366,6 +404,7 @@ class MyWindow(QMainWindow):
 
         #output grille in student folder
         output_student_grille(student)
+        student.condition = 3
         print(student.note)
 
     def open_code(self,student):
@@ -389,8 +428,9 @@ class MyWindow(QMainWindow):
         path = QFileDialog.getOpenFileName(self, "Selectionner le fichier")[0]
         if path != "":
             self.classe = load_classe(path)
-            self.set_student_list()
             self.loaded = True
+            self.set_student_list()
+            print(get_average(self.classe))
 
     def save(self, widget):
         path = QFileDialog.getSaveFileName(self, "Selectionner le fichier")[0]
@@ -406,7 +446,7 @@ class MyWindow(QMainWindow):
     def change_media_list(self, row):
         print("going to: " + str(row.row()))
         self.index = row.row()
-
+    #Search bar-----------------------------------------------------------------
     def search(self, widget):
         media = self.media_list.findItems(self.search_bar.text(),Qt.MatchContains)
         #self.media_list.setSelectionMode(QAbstractItemView.MultiSelection)
@@ -425,6 +465,23 @@ class MyWindow(QMainWindow):
 
     def navigate_search_down(self,widget):
         self.navigate_search("down")
+
+    def navigate_search(self,direction):
+        if self.search_list != None and len(self.search_list) > 0:
+            if direction == "up":
+                if self.search_current == 0:
+                    self.search_current = len(self.search_list) - 1
+                else:
+                    self.search_current -= 1
+            else:
+                if self.search_current == len(self.search_list) - 1:
+                    self.search_current = 0
+                else:
+                    self.search_current += 1
+                
+            self.media_list.clearSelection()
+            self.media_list.selectRow(self.search_list[self.search_current].row())
+    
     #Reference------------------------------------------------------------------
     def get_etudiants(self):
         if self.classe != None:
