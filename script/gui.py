@@ -18,6 +18,7 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QMediaPlaylist
 
 from gen import *
+from stats import *
 
 player = ""
 
@@ -33,6 +34,7 @@ class MyWindow(QMainWindow):
 
     current_grades = []
     search_list = []
+    condition_stat = None
 
     def __init__(self, parent=None):
         print("init")
@@ -79,6 +81,11 @@ class MyWindow(QMainWindow):
         sort_sub_menu.addAction(sort_grade_menu)
         sort_sub_menu.addAction(sort_shuffle_menu)
 
+        #Stat menu
+        statmenu = mainMenu.addMenu("Stats")
+        show_stat_menu = QAction("&Show",self)
+        show_stat_menu.triggered.connect(self.open_stats)
+        statmenu.addAction(show_stat_menu)
         self.show()
 
     def setup_objects_and_events(self):
@@ -275,31 +282,35 @@ class MyWindow(QMainWindow):
     #List-----------------------------------------------------------------------
     def set_student_list(self):
         if self.classe != None:
-            check_if_graded(self.classe)
 
             self.media_list.setRowCount(len(self.get_etudiants()))
             self.media_list.setColumnCount(2)
             self.media_list.horizontalHeader().setDefaultSectionSize(100)
 
+            self.condition_stat = [0,0,0,0]#Keep the stats for later
+
+            #Check the student status to set the color on the list
             for i, etudiant in enumerate(self.get_etudiants()):
                 self.media_list.setItem(i,0,QTableWidgetItem(etudiant.nom))
                 if etudiant.note != None:
                      self.media_list.setItem(i,1,QTableWidgetItem(etudiant.note))
                      self.media_list.item(i,1).setBackground(QColor("green"))
                 else:
-                    self.media_list.setItem(i,1,QTableWidgetItem("NaN"))
+                    self.media_list.setItem(i,1,QTableWidgetItem("None"))
                     self.media_list.item(i,1).setBackground(QColor("red"))
-                if etudiant.condition == 0:
+                if etudiant.condition == 0:#No problem
                     color = "green"
-                elif etudiant.condition == 1:
+                elif etudiant.condition == 1:#No files
                     color = "yellow"
-                elif etudiant.condition == 2:
+                elif etudiant.condition == 2:#Error in the evaluation
                     color = "red"
-                elif etudiant.condition == 3:
+                elif etudiant.condition == 3:#Already graded
                     if etudiant.note == None:
                         etudiant.note = int(get_grade_from_grille(etudiant))
                     color = "green"
-                    
+                #Increment the stats
+                self.condition_stat[etudiant.condition] += 1
+              
                 self.media_list.item(i,0).setBackground(QColor(color))
 
                 if etudiant.note != None:
@@ -321,7 +332,12 @@ class MyWindow(QMainWindow):
         if self.classe != None:
             random.shuffle(self.classe.etudiants)
             self.set_student_list()
-            
+
+    #Stats---------------------------------------------------------------------
+    def open_stats(self,widget):
+        if self.classe != None:
+            stat_window = StatWindow(self)
+        
     #Correction window----------------------------------------------------------
     def generate_correction(self,student):
         print(student.nom)
@@ -420,8 +436,9 @@ class MyWindow(QMainWindow):
         folder_student = QFileDialog.getExistingDirectory(self, "Selectionner Dossier travaux")
         file_grille    = QFileDialog.getOpenFileName(self, "Selectionner Fichier grille")[0]
         path_corrector    = QFileDialog.getOpenFileName(self, "Selectionner Fichier correcteur")[0]
+        tests    = QFileDialog.getOpenFileName(self, "Selectionner Fichier de tests")[0]
         if folder_student != "" and file_grille != "" and path_corrector != "":
-            self.classe = create_class(folder_student,file_grille,path_corrector)
+            self.classe = create_class(folder_student,file_grille,path_corrector,tests)
             self.set_student_list()
 
     def load(self, widget):
@@ -430,7 +447,6 @@ class MyWindow(QMainWindow):
             self.classe = load_classe(path)
             self.loaded = True
             self.set_student_list()
-            print(get_average(self.classe))
 
     def save(self, widget):
         path = QFileDialog.getSaveFileName(self, "Selectionner le fichier")[0]
@@ -494,7 +510,12 @@ class MyWindow(QMainWindow):
          self.title.setText(text)
 
     def get_current_student(self):
-        return self.get_etudiants()[self.index]
+        if self.classe != None:
+            return self.get_etudiants()[self.index]
+
+    def get_average(self):
+        if self.classe != None:
+            return get_average(self.classe)
 
 def get_window():
     return window

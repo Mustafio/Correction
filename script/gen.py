@@ -6,14 +6,20 @@ import subprocess
 from threading import Timer
 import copy
 
-def create_class(path_files,path_grille,path_correcteur):
+#Create class from the user infos
+#@param path_files: path to the folder with the students folders
+#@param path_grille: path to the file with the grille
+#@param path_correcteur: path the the corrector file
+#@param tests: path to the file containing the tests
+#@return classe
+def create_class(path_files,path_grille,path_correcteur,tests):
     bareme = get_grille(path_grille)
     grille = Grille(bareme,path_grille)
-    students = get_students_info(path_files,grille,path_correcteur)
+    students = get_students_info(path_files,grille,path_correcteur,tests)
     classe = Classe(students,grille, path_files)
     return classe
     
-def get_students_info(path,main_grille, path_correcteur):
+def get_students_info(path,main_grille, path_correcteur,tests):
     print("get student from {}".format(path))
     #get all student folders paths
     folders = [f for f in glob.glob(path + "/*")]
@@ -37,7 +43,7 @@ def get_students_info(path,main_grille, path_correcteur):
         try:
             #get all student files
             files = [f for f in glob.glob(new_folder + "/*.js")]
-            
+
             if len(files) == 0:
                 files = None
                 condition = 1
@@ -47,6 +53,18 @@ def get_students_info(path,main_grille, path_correcteur):
                 new_file = files[0].replace(" ","").replace("(","").replace(")","")
                 if( files[0] != new_file):
                     os.rename(files[0],new_file)
+                #if there is tests, append to the end of the file
+                if tests != "":
+                    print(tests)
+                    print(new_file)
+                    student_file = open(new_file,"a")
+                    tests_file = open(tests,"r")
+                    tests_string = tests_file.read()
+                    tests_file.close()
+                    print(tests_string)
+                    student_file.write(tests_string)
+                    student_file.close()
+
                 os.system("{} {} {} {}".format(path_correcteur,new_file,'>',new_folder + '/resultat.txt'))
                # if stop:
                #     stop = False
@@ -61,6 +79,8 @@ def get_students_info(path,main_grille, path_correcteur):
 def get_grille(path):
     csvFile = open(path,"r")
     output = csvFile.readlines()
+    csvFile.close()
+    
     bareme = []
     for i,line in enumerate(output):
         line = line.replace("\n","")
